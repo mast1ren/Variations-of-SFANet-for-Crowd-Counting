@@ -43,7 +43,9 @@ class RegTrainer(Trainer):
             logging.info('using {} gpus'.format(self.device_count))
         else:
             raise Exception("gpu is not available")
+        
         self.device = torch.device("cpu")
+
         self.downsample_ratio = args.downsample_ratio
         self.datasets = {'train': Crowd(os.path.join(args.data_dir, 'train'),
                                         args.crop_size,

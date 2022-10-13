@@ -58,7 +58,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Test ')
     parser.add_argument('--origin-dir', default='../../ds/dronebird',
                         help='original data directory')
-    parser.add_argument('--data-dir', default='precessed_data',
+    parser.add_argument('--data-dir', default='preprocessed_data',
                         help='processed data directory')
     args = parser.parse_args()
     return args

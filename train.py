@@ -11,7 +11,7 @@ args = None
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train ')
-    parser.add_argument('--data-dir', default='../../ds/dronebird/npydata',
+    parser.add_argument('--data-dir', default='preprocessed_data',
                         help='training data directory')
     parser.add_argument('--save-dir', default='',
                         help='directory to save models.')
