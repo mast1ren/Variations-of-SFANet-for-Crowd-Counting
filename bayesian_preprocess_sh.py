@@ -72,7 +72,7 @@ if __name__ == '__main__':
     for phase in ['train', 'test']:
         sub_dir = os.path.join(args.origin_dir, phase)
         if phase == 'train':
-            sub_phase_list = ['train']
+            sub_phase_list = ['train', 'val']
             for sub_phase in sub_phase_list:
                 sub_save_dir = os.path.join(save_dir, sub_phase)
                 if not os.path.exists(sub_save_dir):
