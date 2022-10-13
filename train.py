@@ -8,9 +8,10 @@ import torch
 
 args = None
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Train ')
-    parser.add_argument('--data-dir', default='',
+    parser.add_argument('--data-dir', default='../../ds/dronebird/npydata',
                         help='training data directory')
     parser.add_argument('--save-dir', default='',
                         help='directory to save models.')
@@ -51,6 +52,7 @@ def parse_args():
                         help='background ratio')
     args = parser.parse_args()
     return args
+
 
 if __name__ == '__main__':
     args = parse_args()
