@@ -1,3 +1,5 @@
+from msilib import sequence
+from re import sub
 from scipy.io import loadmat
 from PIL import Image
 import numpy as np
@@ -5,6 +7,7 @@ import os
 from glob import glob
 import cv2
 import argparse
+import json
 
 def cal_new_size(im_h, im_w, min_size, max_size):
     if im_h < im_w:
@@ -40,8 +43,8 @@ def find_dis(point):
 def generate_data(im_path):
     im = Image.open(im_path)
     im_w, im_h = im.size
-    mat_path = im_path.replace('.jpg', '_ann.mat')
-    points = loadmat(mat_path)['image_info'][0, 0][0, 0][0].astype(np.float32)
+    mat_path = im_path.replace('.jpg', '.mat').replace('data', 'annotation')
+    points = loadmat(mat_path)['locations'].astype(np.float32)
     idx_mask = (points[:, 0] >= 0) * (points[:, 0] <= im_w) * (points[:, 1] >= 0) * (points[:, 1] <= im_h)
     points = points[idx_mask]
     im_h, im_w, rr = cal_new_size(im_h, im_w, min_size, max_size)
@@ -53,9 +56,9 @@ def generate_data(im_path):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Test ')
-    parser.add_argument('--origin-dir', default='/path/original',
+    parser.add_argument('--origin-dir', default='../../ds/dronebird',
                         help='original data directory')
-    parser.add_argument('--data-dir', default='/path/processed',
+    parser.add_argument('--data-dir', default='precessed_data',
                         help='processed data directory')
     args = parser.parse_args()
     return args
@@ -63,40 +66,52 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     save_dir = args.data_dir
-    min_size = 256
-    max_size = 2048*2
+    min_size = 512
+    max_size = 2048
 
-    for phase in ['Train', 'Test']:
+    for phase in ['train', 'test']:
         sub_dir = os.path.join(args.origin_dir, phase)
-        if phase == 'Train':
+        if phase == 'train':
             sub_phase_list = ['train']
             for sub_phase in sub_phase_list:
                 sub_save_dir = os.path.join(save_dir, sub_phase)
                 if not os.path.exists(sub_save_dir):
-                    os.makedirs(sub_save_dir)                
-                for i in [e for e in os.listdir(sub_dir) if e.endswith('jpg')]:
-                    im_path = os.path.join(sub_dir, i.strip())
+                    os.makedirs(sub_save_dir)
+                with open(os.path.join('../../../ds/dronebird', '{}.json'.format(sub_phase)), 'r') as f:
+                    im_name_list = json.load(f)
+                for i in range(len(im_name_list)):
+                    im_path = im_name_list[i]
                     name = os.path.basename(im_path)
-                    print(name)
+                    seq = im_path.split('/')[-3]
+                    name = seq + '_' + name
                     im, points = generate_data(im_path)
                     if sub_phase == 'train':
                         dis = find_dis(points)
-                        points = np.concatenate((points, dis), axis=1)
+                        points = np.concatenate([points, dis], axis=1)
+                    print('\r[{:>{}}/{}] Processing {}...'.format(i,
+                          len(str(len(im_name_list))), len(im_name_list), im_path), end='')
                     im_save_path = os.path.join(sub_save_dir, name)
                     im.save(im_save_path)
                     gd_save_path = im_save_path.replace('jpg', 'npy')
                     np.save(gd_save_path, points)
+                print('')
 
         else:
             sub_save_dir = os.path.join(save_dir, 'test')
             if not os.path.exists(sub_save_dir):
                 os.makedirs(sub_save_dir)
-            im_list = glob(os.path.join(sub_dir, '*jpg'))
-            for im_path in im_list:
+            with open(os.path.join('../../../ds/dronebird/test.json'), 'r') as f:
+                im_name_list = json.load(f)
+            for i in range(len(im_name_list)):
+                im_path = im_name_list[i]
                 name = os.path.basename(im_path)
-                print(name)
+                seq = im_path.split('/')[-3]
+                name = seq + '_' + name
+                print('\r[{:>{}}/{}] Processing {}...'.format(i,
+                          len(str(len(im_name_list))), len(im_name_list), im_path), end='')
                 im, points = generate_data(im_path)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
                 np.save(gd_save_path, points)
+            print('')

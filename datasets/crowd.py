@@ -91,7 +91,7 @@ class Crowd(data.Dataset):
         i, j, h, w = random_crop(ht, wd, self.c_size, self.c_size)
         img = F.crop(img, i, j, h, w)
         
-        nearest_dis = np.clip(keypoints[:, 2], 4.0, 128.0)
+        nearest_dis = np.clip(keypoints[:, :2], 4.0, 128.0)
 
         points_left_up = keypoints[:, :2] - nearest_dis[:, None] / 2.0
         points_right_down = keypoints[:, :2] + nearest_dis[:, None] / 2.0
@@ -103,7 +103,8 @@ class Crowd(data.Dataset):
 
         target = ratio[mask]
         keypoints = keypoints[mask]
-        keypoints = keypoints[:, :2] - [j, i]  # change coodinate
+        print(keypoints.shape)
+        keypoints = keypoints[:] - [j, i]  # change coodinate
         if len(keypoints) > 0:
             if random.random() > 0.5:
                 img = F.hflip(img)

@@ -2,11 +2,10 @@
 Original souce code: https://github.com/ZhihengCV/Bayesian-Crowd-Counting
 '''
 import torch.nn.functional as F
-from models import M_SFANet_UCF_QNRF, lookahead
+from models import M_SFANet_UCF_QNRF, lookahead, M_SFANet
 from losses.post_prob import Post_Prob
 from losses.bay_loss import Bay_Loss
 from datasets.crowd import Crowd
-from models.vgg import vgg19
 from utils.trainer import Trainer
 from utils.helper import Save_Handle, AverageMeter
 import os
@@ -44,7 +43,7 @@ class RegTrainer(Trainer):
             logging.info('using {} gpus'.format(self.device_count))
         else:
             raise Exception("gpu is not available")
-
+        self.device = torch.device("cpu")
         self.downsample_ratio = args.downsample_ratio
         self.datasets = {'train': Crowd(os.path.join(args.data_dir, 'train'),
                                         args.crop_size,
@@ -68,7 +67,8 @@ class RegTrainer(Trainer):
                                           pin_memory=(True if x == 'train' else False), drop_last=True)
                             for x in ['train', 'val']}
 
-        self.model = M_SFANet_UCF_QNRF.Model()
+        # self.model = M_SFANet_UCF_QNRF.Model()
+        self.model = M_SFANet.Model()
         self.model.to(self.device)
         self.optimizer = lookahead.LookaheadAdam(
             self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -103,7 +103,7 @@ class RegTrainer(Trainer):
         """training process"""
         args = self.args
         self.epoch = 275
-        self.val_epoch()
+        # self.val_epoch()
         for epoch in range(self.start_epoch, args.max_epoch):
             print('training EP:', str(epoch))
             logging.info('-'*5 + 'Epoch {}/{}'.format(epoch,
@@ -172,8 +172,13 @@ class RegTrainer(Trainer):
                 0) == 1, 'the batch size should equal to 1 in validation mode'
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                res = count[0].item() - torch.sum(outputs).item()
+                # pre_count = torch.sum(outputs).item()
+                pre_count = torch.sum(outputs[0]).item()
+                res = count[0].item() - pre_count
                 epoch_res.append(res)
+            print('\r{:>{}}/{}, gt: {}, pre: {}, res: {}'.format(name[0], len(str(len(self.dataloaders['val']))), len(
+                self.dataloaders['val']), count[0].item(), pre_count, res), end='')
+        print()
 
         epoch_res = np.array(epoch_res)
         mse = np.sqrt(np.mean(np.square(epoch_res)))
