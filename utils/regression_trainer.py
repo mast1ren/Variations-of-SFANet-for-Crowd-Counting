@@ -43,7 +43,7 @@ class RegTrainer(Trainer):
             logging.info('using {} gpus'.format(self.device_count))
         else:
             raise Exception("gpu is not available")
-        
+
         self.device = torch.device("cpu")
 
         self.downsample_ratio = args.downsample_ratio
@@ -59,10 +59,10 @@ class RegTrainer(Trainer):
                          }
 
         self.dataloaders = {x: DataLoader(self.datasets[x],
-                                          collate_fn=(train_collate
-                                                      if x == 'train' else default_collate),
-                                          batch_size=(args.batch_size
-                                          if x == 'train' else 1),
+                                          collate_fn=(
+                                              train_collate if x == 'train' else default_collate),
+                                          batch_size=(
+                                              args.batch_size if x == 'train' else 1),
                                           shuffle=(
                                               True if x == 'train' else False),
                                           num_workers=args.num_workers*self.device_count,
@@ -142,12 +142,17 @@ class RegTrainer(Trainer):
                 self.optimizer.step()
 
                 N = inputs.size(0)
-                pre_count = torch.sum(outputs.view(
-                    N, -1), dim=1).detach().cpu().numpy()
+                # print(outputs)
+                final_density = outputs[0] * outputs[1]
+                pre_count = final_density.sum().item()
+                # pre_count = torch.sum(outputs.view(
+                    # N, -1), dim=1).detach().cpu().numpy()
                 res = pre_count - gd_count
                 epoch_loss.update(loss.item(), N)
                 epoch_mse.update(np.mean(res * res), N)
                 epoch_mae.update(np.mean(abs(res)), N)
+                print('\r[{:>{}}/{}] Loss: {:.4f} pred: {:.2f} gt: {:.4f}'.format(step, len(str(len(self.dataloaders['train']))),len(self.dataloaders['train']), loss.item(), pre_count, gd_count.mean()), end='')
+        print()
         logging.info('Epoch {} Train, Loss: {:.2f}, MSE: {:.2f} MAE: {:.2f}, Cost {:.1f} sec'
                      .format(self.epoch, epoch_loss.get_avg(), np.sqrt(epoch_mse.get_avg()), epoch_mae.get_avg(),
                              time.time()-epoch_start))
