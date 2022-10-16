@@ -1,6 +1,7 @@
 '''
 Original souce code: https://github.com/ZhihengCV/Bayesian-Crowd-Counting
 '''
+import cv2
 import torch.nn.functional as F
 from models import M_SFANet_UCF_QNRF, lookahead, M_SFANet
 from losses.post_prob import Post_Prob
@@ -69,8 +70,8 @@ class RegTrainer(Trainer):
                                           pin_memory=(True if x == 'train' else False), drop_last=True)
                             for x in ['train', 'val']}
 
-        # self.model = M_SFANet_UCF_QNRF.Model()
-        self.model = M_SFANet.Model()
+        self.model = M_SFANet_UCF_QNRF.Model()
+        # self.model = M_SFANet.Model()
         self.model.to(self.device)
         self.optimizer = lookahead.LookaheadAdam(
             self.model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -134,24 +135,30 @@ class RegTrainer(Trainer):
             targets = [t.to(self.device) for t in targets]
 
             with torch.set_grad_enabled(True):
-                outputs = self.model(inputs)
+                out = self.model(inputs)
                 prob_list = self.post_prob(points, st_sizes)
-                loss = self.criterion(prob_list, targets, outputs)
+                loss = self.criterion(prob_list, targets, out)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
                 N = inputs.size(0)
-                # print(outputs)
-                final_density = outputs[0] * outputs[1]
-                pre_count = final_density.sum().item()
-                # pre_count = torch.sum(outputs.view(
-                    # N, -1), dim=1).detach().cpu().numpy()
+                
+                cv2.imshow('img', inputs[0].cpu().numpy().transpose(1,2,0))
+                # print(out)
+                cv2.imshow('out', out[0].detach().cpu().numpy().transpose(1,2,0))
+                # cv2.imshow('gt', targets[0][0].cpu().numpy())
+                # cv2.imshow('gt', targets[0].detach().cpu().numpy())
+                os.system('pause')
+                pre_count = torch.sum(out.view(
+                    N, -1), dim=1).detach().cpu().numpy()
                 res = pre_count - gd_count
                 epoch_loss.update(loss.item(), N)
                 epoch_mse.update(np.mean(res * res), N)
                 epoch_mae.update(np.mean(abs(res)), N)
-                print('\r[{:>{}}/{}] Loss: {:.4f} pred: {:.2f} gt: {:.4f}'.format(step, len(str(len(self.dataloaders['train']))),len(self.dataloaders['train']), loss.item(), pre_count, gd_count.mean()), end='')
+                # print(gd_count.sum(), res.sum(), pre_count)
+                print('\r[{:>{}}/{}] Loss: {:.4f} pred: {:.2f} gt: {:.4f}'.format(step, len(str(len(self.dataloaders['train']))),
+                      len(self.dataloaders['train']), loss.item(), pre_count.sum(), gd_count.sum()), end='')
         print()
         logging.info('Epoch {} Train, Loss: {:.2f}, MSE: {:.2f} MAE: {:.2f}, Cost {:.1f} sec'
                      .format(self.epoch, epoch_loss.get_avg(), np.sqrt(epoch_mse.get_avg()), epoch_mae.get_avg(),
@@ -179,8 +186,8 @@ class RegTrainer(Trainer):
                 0) == 1, 'the batch size should equal to 1 in validation mode'
             with torch.set_grad_enabled(False):
                 outputs = self.model(inputs)
-                # pre_count = torch.sum(outputs).item()
-                pre_count = torch.sum(outputs[0]).item()
+                pre_count = torch.sum(outputs).item()
+                # pre_count = torch.sum(torch.abs(outputs[0])).item()
                 res = count[0].item() - pre_count
                 epoch_res.append(res)
             print('\r{:>{}}/{}, gt: {}, pre: {}, res: {}'.format(name[0], len(str(len(self.dataloaders['val']))), len(
